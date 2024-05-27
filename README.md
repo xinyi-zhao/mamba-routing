@@ -26,11 +26,13 @@ python evaluation.py --datasets triviaqa squad swde drop  --limit 100
 Be careful about the prompt design. 
 
 # Finetune
+### Sample code used for fine-tuning mamba-chat (/training)
+python train_mamba.py --model state-spaces/mamba-790m --tokenizer EleutherAI/gpt-neox-20b --learning_rate 5e-5 --batch_size 1 --gradient_accumulation_steps 4 --optim paged_adamw_8bit --data_path ./ultrachat_small.jsonl --num_epochs 3
 
 ## Todo
-- load dataset
-- finetune and save model
-- prompt based smaller model?
+- load dataset (edit /training/data.py to use our dataset)
+- finetune and save model (see /training)
+- prompt based smaller model? (edit prompt template in composed.py for each sub-model)
 - decrease the effect of prompt design during evaluation
 
 # Routing
