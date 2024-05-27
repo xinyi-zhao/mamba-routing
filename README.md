@@ -23,7 +23,9 @@ python evaluation.py --datasets code2text dialog_summary cnn_news  --limit 1000
 python evaluation.py --datasets triviaqa squad swde drop  --limit 100
 
 ## Todo
-Be careful about the prompt design. 
+- Try running on gpt-neo, opt, pythia, hybrid h3
+- Add inference latency measurement
+- Be careful about the prompt design. 
 
 # Finetune
 ### Sample code used for fine-tuning mamba-chat (/training)
@@ -32,6 +34,7 @@ python train_mamba.py --model state-spaces/mamba-790m --tokenizer EleutherAI/gpt
 ## Todo
 - load dataset (edit /training/data.py to use our dataset)
 - finetune and save model (see /training)
+- add training throughput measurement
 - prompt based smaller model? (edit prompt template in composed.py for each sub-model)
 - decrease the effect of prompt design during evaluation
 
