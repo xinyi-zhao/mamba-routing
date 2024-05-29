@@ -17,8 +17,12 @@ def main(args):
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.padding_side = "left"
     else:
-        tokenizer = AutoTokenizer.from_pretrained(ars.gmodel)
-    model = MambaLMHeadModel.from_pretrained(args.model, device=device, dtype=torch.float16)
+        tokenizer = AutoTokenizer.from_pretrained(args.model)
+    
+    model = MambaLMHeadModel.from_pretrained("state-spaces/mamba-370m", device=device, dtype=torch.float16) 
+    if (args.checkpoint != ""):
+        model.load_state_dict(torch.load(f'{args.checkpoint}/pytorch_model.bin'))
+    
     result = {}
     
     for dataset in args.datasets:
@@ -57,8 +61,8 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size for generation')
     parser.add_argument('--datasets', type=str, nargs='+', default=['GSM8K'], help='Dataset name for commonsense loading')
     parser.add_argument('--limit', type=int, default=-1, help='Limit the number of samples')
-    parser.add_argument('--model', type=str, default="state-spaces/mamba-2.8b", help='Model Name')
-
+    parser.add_argument('--model', type=str, default="state-spaces/mamba-370m", help='Model Name')
+    parser.add_argument('--checkpoint', type=str, default="")
     args = parser.parse_args()
 
     main(args)
