@@ -87,15 +87,43 @@ python3 routing.py --limit 5 --encoder huggingface  --optimize --gpt --prompt " 
 ```
 
 ## Todo
-- [ ] Replace placeholder router function in composed.py
-- [ ] decrease the effect of some prompt-design on our side
+- [ ] Improve accuracy
+- [ ] Try writing a different similarity match
 
-# Composed Model
+# Composed 
+
+## Current integration (unbatched)
+Prototyping, may be used for accuracy testing
 - Defines a langchain for each fine-tuned model.
-- Routes via logic defined in routing.
+- Routes via semantic routing.
 - Use evaluate_composed.py for evaluation.
 
-## Todo
-- [ ] Swap in fine-tuned models
-- [ ] Run evaluation
-- [ ] Provide running script/ notebook
+### Usage and Evaluation
+
+Construct model
+```console
+composed = ComposedModel(device)
+composed.add_model("code2text", "mrm8488/mamba-coder", in_context_prompt = "", checkpoint = None)
+composed.finalize_model()
+generated = composed.batch(prompts)
+```
+
+Evaluation
+```console
+python evaluate_composed.py --datasets code2text nq_open --limit 50
+```
+
+## Composed model with parallel batched execution
+Per batch 
+- Route each prompt to a model (use tag for perfect routing simulation)
+- Bucket prompts by their routed model
+- Execute batched inference on each model in parallel
+
+### Evaluation
+- Randomize incoming order of prompts from different datasets
+- Tag each prompt with its label for metric computation after
+- Tag each prompt with its task for perfect routing simulation
+
+### Todo
+- [ ] Dev
+- [ ] Run latency measurements

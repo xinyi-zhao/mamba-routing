@@ -13,9 +13,12 @@ import time
 
 device = "cuda"
 def main(args):
+    if device == "cuda":
+        torch.cuda.empty_cache()
+        
     batch_size = args.batch_size
 
-    if args.model.find("mamba") != -1:
+    if args.model.find("state-spaces/mamba") != -1:
         tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
     else:
         tokenizer = AutoTokenizer.from_pretrained(args.model)
@@ -84,7 +87,7 @@ def main(args):
                 input_tokens += input_length
                 output_tokens += len(output) - input_length
         result[dataset] = [metric.compute(predictions = generated_texts, references = labels) for metric in metrics]
-        print("dataset: %s\nlatency: %f\nnumber of input tokens: %d\nnumber of output tokens: %d\ntime per ouput token: %fns" % (dataset, time_taken, input_tokens, output_tokens, (time_taken/output_tokens)*(10**9)))
+        print("dataset: %s\nlatency: %f\nnumber of input tokens: %d\nnumber of output tokens: %d\nouput tokens / sec: %f" % (dataset, time_taken, input_tokens, output_tokens, output_tokens/time_taken))
     print(result)
 
 if __name__ == "__main__":
