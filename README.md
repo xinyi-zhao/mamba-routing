@@ -32,6 +32,7 @@ python evaluation.py --model state-spaces/mamba-370m --checkpoint state-spaces_m
 - Be careful about the prompt design. 
 
 # Finetune
+Same datasets and tasks
 python finetune.py --dataset summarization  --limit 100
 
 ### Sample code used for fine-tuning mamba-chat (/training)
