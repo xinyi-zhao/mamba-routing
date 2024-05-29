@@ -17,34 +17,61 @@ Three types of tasks:
 - swde: table based information extraction
 - drop: reading comprehension (requirece discrete reasoing over paragraphs)
 
+```console
 python evaluation.py --datasets nq_open GSM8K MedQUAD --limit 100
-
 python evaluation.py --datasets code2text dialog_summary cnn_news  --limit 1000
-
 python evaluation.py --datasets triviaqa squad swde drop  --limit 100
+```
+
+## Models
+We support 4 model architectures:
+- state-spaces/mamba-1.4b
+- EleutherAI/gpt-neo-1.3B
+- EleutherAI/pythia-1.4b
+- facebook/opt-1.3b
+
+```console
+python evaluation.py --model EleutherAI/gpt-neo-1.3B --datasets nq_open --limit 100
+```
+## Performance metrics
+(Reported per dataset of evaluation)
+- latency: time taken across ```model.generate```
+- number of input tokens
+- number of output tokens
+- time per output token: latency / number of output tokens
 
 ## Running with finetuned model:
-python evaluation.py --model state-spaces/mamba-370m --checkpoint state-spaces_mamba-370m_nq_open/checkpoint-500 --batch_size 32 --datasets nq_open --limit 100
+```console
+python evaluation.py --model state-spaces/mamba-370m --checkpoint saved_models/state-spaces_mamba-370m_nq_open/checkpoint-200 --datasets nq_open --limit 100
+```
 
 ## Todo
-- Ensure evaluation runs on gpt-neo, opt, pythia, hybrid h3
-- Add inference latency measurement
-- Be careful about the prompt design. 
+- [ ] Run evaluation on across all models
+- [ ] Be careful about the prompt design. 
 
 # Finetune
 Same datasets and tasks
-python finetune.py --dataset summarization  --limit 100
+```console
+python finetune.py --dataset nq_open  --limit 300 --num_epochs 3
+```
 
-### Sample code used for fine-tuning mamba-chat (/training)
-~~python train_mamba.py --model state-spaces/mamba-790m --tokenizer EleutherAI/gpt-neox-20b --learning_rate 5e-5 --batch_size 1 --gradient_accumulation_steps 4 --optim paged_adamw_8bit --data_path ./ultrachat_small.jsonl --num_epochs 3~~
+## Performance metrics
+(Logged by trainer)
+- train_runtime: time taken for training
+- train_samples_per_second
+- train_steps_per_second
+- train_loss: final loss
+
+```console
+{'train_runtime': 250.309, 'train_samples_per_second': 3.596, 'train_steps_per_second': 0.899, 'train_loss': 0.6560872395833334, 'epoch': 3.0}
+```
 
 ## Todo
-- ~Load dataset (edit /training/data.py to use our dataset)~
-- ~Finetune and save model (see /training)~
-- Add training throughput measurement
-- Finetuning all all the tasks
-- Prompt based smaller model? (edit prompt template in composed.py to do in-context learning for each sub-model)
-- decrease the effect of prompt design during evaluation
+- [ ] Support fine-tuning for one of gpt-neo/ pythia/ opt
+- [ ] For one task, compare fine-tuning on mamba vs gpt-neo/ pythia/ opt
+- [ ] Finetune mamba on other tasks
+- [ ] Prompt based smaller model (edit prompt template in composed.py to do in-context learning for each sub-model)
+- [ ] decrease the effect of prompt design during evaluation
 
 # Routing
 - routing between three types of tasks
@@ -60,10 +87,15 @@ python3 routing.py --limit 5 --encoder huggingface  --optimize --gpt --prompt " 
 ```
 
 ## Todo
-- Replace placeholder router function in composed.py
-- decrease the effect of some prompt-design on our side
+- [ ] Replace placeholder router function in composed.py
+- [ ] decrease the effect of some prompt-design on our side
 
-# Integration
-- Combine the evaluation to the routing process (see evaluate_composed.py)
+# Composed Model
+- Defines a langchain for each fine-tuned model.
+- Routes via logic defined in routing.
+- Use evaluate_composed.py for evaluation.
+
 ## Todo
-- Run tests
+- [ ] Swap in fine-tuned models
+- [ ] Run evaluation
+- [ ] Provide running script/ notebook
