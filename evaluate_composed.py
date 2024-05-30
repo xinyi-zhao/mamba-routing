@@ -1,20 +1,21 @@
 import torch
-from transformers import AutoTokenizer
-from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
-from datasets import load_metric, load_dataset
 from loaddata.commonsense import load_commonsense_evaluation
 from loaddata.summarization import load_summarization_evaluation
 from loaddata.informationextraction import load_extraction_evaluation
 import tqdm
 import argparse
 
-from composed import full_chain
-
+from composed_model import ComposedModel
 
 device = "cuda"
 def main(args):
     batch_size = args.batch_size
     result = {}
+
+    ## Define composed model
+    composed = ComposedModel(device)
+    composed.add_model("code2text", "mrm8488/mamba-coder", in_context_prompt = "", checkpoint = None)
+    composed.finalize_model()
     
     for dataset in args.datasets:
         if dataset in ["nq_open", "GSM8K", "MedQUAD"]: #Common Knowledge QA
@@ -32,7 +33,7 @@ def main(args):
 
             # Determine the size of the current batch (it may be less than batch_size at the end)
             end_index = min(i + batch_size, len(prompts))
-            generated = full_chain.batch(prompts[i:end_index])
+            generated = composed.batch(prompts[i:end_index])
             generated_texts.extend(generated)
 
         result[dataset] = [metric.compute(predictions = generated_texts, references = labels) for metric in metrics]
@@ -40,10 +41,9 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate text using MambaLMHeadModel')
-    parser.add_argument('--batch_size', type=int, default=32, help='Batch size for generation')
+    parser.add_argument('--batch_size', type=int, default=2, help='Batch size for generation')
     parser.add_argument('--datasets', type=str, nargs='+', default=['GSM8K'], help='Dataset name for commonsense loading')
     parser.add_argument('--limit', type=int, default=-1, help='Limit the number of samples')
-    parser.add_argument('--model', type=str, default="state-spaces/mamba-2.8b", help='Model Name')
 
     args = parser.parse_args()
 

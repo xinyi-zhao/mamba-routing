@@ -3,6 +3,8 @@ from datasets import load_metric, load_dataset
 import numpy as np
 from evaluate import load
 import re
+import gc
+from .finetunedataset import FinetuneDataModumn
 
 class contains_metric:
     def compute(predictions, references):
@@ -69,3 +71,46 @@ def load_commonsense_evaluation(name = "nq", limit = -1):
         metrics = [load("rouge")]
         return prompts, labels, metrics
     return None, None
+
+def load_commonsense_training(name, tokenizer, limit = -1):
+    prompts = []
+    labels = []
+    if(name == "nq_open" or name == "commonsense"):
+        dataset = load_dataset("nq_open")
+        df = dataset["train"].to_pandas() 
+        cnt = 0
+        for _ , row in df.iterrows():
+            prompt = row["question"] + " Answer:"
+            label = row["answer"][0]
+            prompts.append(prompt)
+            labels.append(label)
+            cnt += 1
+            if limit > -1 and cnt == limit:
+                break
+    
+    if(name == "GSM8K" or name == "commonsense"):
+        dataset = load_dataset("gsm8k", "main")
+        df = dataset["train"].to_pandas()
+        cnt = 0
+        for _ , row in df.iterrows():
+            prompt = row["question"] 
+            label = row["answer"]
+            prompts.append(prompt)
+            labels.append(label)
+            cnt += 1
+            if limit > -1 and cnt == limit:
+                break
+    
+    if(name == "MedQUAD" or name == "commonsense"):
+        dataset = load_dataset("keivalya/MedQuad-MedicalQnADataset")
+        df = dataset["train"].to_pandas()[:-1000]
+        cnt = 0
+        for _ , row in df.iterrows():
+            cnt += 1
+            prompt = row["Question"]
+            label = row["Answer"]
+            prompts.append(prompt)
+            labels.append(label)
+            if limit > -1 and cnt == limit:
+                break
+    return FinetuneDataModumn(tokenizer, prompts, labels)
