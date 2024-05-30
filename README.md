@@ -128,15 +128,15 @@ Per batch
 - Tag each prompt with its task for perfect routing simulation
 
 Running a model in the backend:
-'''console
+```console
 python model_starting/start_model_offline.py --port 2002
-'''
+```
 
 Testing latency: 
 each dataset corresponds to one port number 
-'''console
+```console
 python latency.py --limit 50 --batch_size 10 --datasets nq_open GSM8K --port 2001 2002
-'''
+```
 
 ### Todo
 [] Collecting experiment data
