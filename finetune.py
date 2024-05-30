@@ -29,13 +29,6 @@ def run(args):
         data_module = load_extraction_training(args.dataset, tokenizer, limit = args.limit)
     else:
         print("No such dataset ", dataset)
-    
-    # data_module = ChatDataModule(
-    #     tokenizer=tokenizer,
-    #     data_path=args.data_path,
-    #     conversation_template=tokenizer.chat_template,
-    #     max_tokens=2048
-    # )
 
     model = MambaLMHeadModel.from_pretrained(args.model, dtype=torch.bfloat16, device="cuda")
     trainer = MambaTrainer(
@@ -50,7 +43,7 @@ def run(args):
             optim=args.optim,
             output_dir=f"{args.save_path}/{get_name(args.model)}_{get_name(args.dataset)}",
             logging_steps=50,
-            save_steps=500,
+            save_steps=200,
         ),
         data_collator=data_module.data_collator,
     )
@@ -67,7 +60,6 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
     parser.add_argument("--optim", type=str, default="adamw_torch")
-    parser.add_argument("--data_path", type=str, default="./data/ultrachat_small.jsonl")
     parser.add_argument("--num_epochs", type=int, default=1)
     parser.add_argument("--save_path", type=str, default = "saved_models")
     parser.add_argument("--limit", type=int, default = -1)
