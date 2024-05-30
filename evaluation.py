@@ -88,6 +88,7 @@ def main(args):
                 output_tokens += len(output) - input_length
         result[dataset] = [metric.compute(predictions = generated_texts, references = labels) for metric in metrics]
         print("dataset: %s\nlatency: %f\nnumber of input tokens: %d\nnumber of output tokens: %d\nouput tokens / sec: %f" % (dataset, time_taken, input_tokens, output_tokens, output_tokens/time_taken))
+        print(f"Cuda Memory reserved: {torch.cuda.max_memory_reserved() / 1e9:.02f} GB")
     print(result)
 
 if __name__ == "__main__":
