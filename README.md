@@ -38,7 +38,7 @@ python evaluation.py --model EleutherAI/gpt-neo-1.3B --datasets nq_open --limit 
 - latency: time taken across ```model.generate```
 - number of input tokens
 - number of output tokens
-- time per output token: latency / number of output tokens
+- ouput tokens / sec = number of output tokens / latency
 
 ## Running with finetuned model:
 ```console
