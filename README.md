@@ -130,3 +130,8 @@ Per batch
 ### Todo
 - [ ] Dev
 - [ ] Run latency measurements
+
+## System building and latency test
+### Todo
+- [ ] Write the pipeline
+- [ ] Run the test
