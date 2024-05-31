@@ -15,6 +15,8 @@ def get_name(name):
     return name
 
 def run(args):
+    torch.cuda.empty_cache()
+    
     if args.model.find("mamba") != -1:
         tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
         tokenizer.pad_token = tokenizer.eos_token
@@ -49,6 +51,7 @@ def run(args):
     )
 
     trainer.train()
+    print(f"Cuda Memory reserved: {torch.cuda.max_memory_reserved() / 1e9:.02f} GB")
 
 
 if __name__ == "__main__":

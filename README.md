@@ -38,7 +38,7 @@ python evaluation.py --model EleutherAI/gpt-neo-1.3B --datasets nq_open --limit 
 - latency: time taken across ```model.generate```
 - number of input tokens
 - number of output tokens
-- time per output token: latency / number of output tokens
+- ouput tokens / sec = number of output tokens / latency
 
 ## Running with finetuned model:
 ```console
@@ -127,6 +127,17 @@ Per batch
 - Tag each prompt with its label for metric computation after
 - Tag each prompt with its task for perfect routing simulation
 
+Running a model in the backend:
+```console
+python model_starting/start_model_offline.py --port 2002
+```
+
+Testing latency: 
+each dataset corresponds to one port number 
+```console
+python latency.py --limit 50 --batch_size 10 --datasets nq_open GSM8K --port 2001 2002
+```
+
 ### Todo
-- [ ] Dev
-- [ ] Run latency measurements
+[] Collecting experiment data
+[] online model (close model when don't use it)
