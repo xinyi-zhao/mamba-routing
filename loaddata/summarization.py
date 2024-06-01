@@ -5,14 +5,21 @@ from evaluate import load
 import re
 from .finetunedataset import FinetuneDataModumn
 
-def load_summarization_evaluation(name = "nq", limit = -1):
+def truncate(context, tokenizer, length = 1500):
+    tokens = tokenizer.encode(context, return_tensors = "pt")[0]
+    tokens = tokens[:min(length, len(tokens))]
+    context = tokenizer.decode(tokens)
+    return context
+
+
+def load_summarization_evaluation(name = "nq", limit = -1, tokenizer = None):
     if(name == "code2text"):
         dataset = load_dataset("google/code_x_glue_ct_code_to_text", "java")
         df = dataset["validation"].to_pandas() 
         prompts = []
         labels = []
         for _ , row in df.iterrows():
-            prompt = row["original_string"] + "What is the funtion of this code? Answer:"
+            prompt = truncate(row["original_string"], tokenizer, 1500) + "What is the funtion of this code? Answer:"
             label = row["docstring"]
             prompts.append(prompt)
             labels.append(label)
@@ -26,7 +33,7 @@ def load_summarization_evaluation(name = "nq", limit = -1):
         prompts = []
         labels = []
         for _ , row in df.iterrows():
-            prompt = "Dialogue:" + row["dialogue"] + "What is the summarization of this dialogue? Answer:"
+            prompt = "Dialogue:" + truncate(row["dialogue"], tokenizer, 1500) + "What is the summarization of this dialogue? Answer:"
             label = row["summary"]
             prompts.append(prompt)
             labels.append(label)
@@ -40,7 +47,7 @@ def load_summarization_evaluation(name = "nq", limit = -1):
         prompts = []
         labels = []
         for _ , row in df.iterrows():
-            prompt = "Article: " + row["article"] + "\nWhat is the highlight of this article? Answer:"
+            prompt = "Article: " + truncate(row["article"],tokenizer, 1500) + "\nWhat is the highlight of this article? Answer:"
             label = row["highlights"]
             prompts.append(prompt)
             labels.append(label)
@@ -48,6 +55,7 @@ def load_summarization_evaluation(name = "nq", limit = -1):
                 break
         metrics = [load("rouge")]
         return prompts, labels, metrics
+
 
 def load_summarization_training(name, tokenizer, limit = -1):
     prompts = []
@@ -57,7 +65,7 @@ def load_summarization_training(name, tokenizer, limit = -1):
         df = dataset["train"].to_pandas() 
         cnt = 0
         for _ , row in df.iterrows():
-            prompt = row["original_string"] + "What is the funtion of this code? Answer:"
+            prompt = truncate(row["original_string"], tokenizer, 1500) + "What is the funtion of this code? Answer:"
             label = row["docstring"]
             prompts.append(prompt)
             labels.append(label)
@@ -70,7 +78,7 @@ def load_summarization_training(name, tokenizer, limit = -1):
         df = dataset["train"].to_pandas() 
         cnt = 0
         for _ , row in df.iterrows():
-            prompt = "Dialogue:" + row["dialogue"] + "What is the summarization of this dialogue? Answer:"
+            prompt = "Dialogue:" + truncate(row["dialogue"], tokenizer, 1500) + "What is the summarization of this dialogue? Answer:"
             label = row["summary"]
             prompts.append(prompt)
             labels.append(label)
@@ -83,7 +91,7 @@ def load_summarization_training(name, tokenizer, limit = -1):
         df = dataset["train"].to_pandas() 
         cnt = 0
         for _ , row in df.iterrows():
-            prompt = "Article: " + row["article"] + "\nWhat is the highlight of this article? Answer:"
+            prompt = "Article: " + truncate(row["article"], tokenizer, 1500) + "\nWhat is the highlight of this article? Answer:"
             label = row["highlights"]
             prompts.append(prompt)
             labels.append(label)
