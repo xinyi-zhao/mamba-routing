@@ -5,13 +5,19 @@ from evaluate import load
 import re
 from .finetunedataset import FinetuneDataModumn
 
+def truncate(context, tokenizer, length = 1500):
+    tokens = tokenizer.encode(context, return_tensors = "pt")[0]
+    tokens = tokens[:min(length, len(tokens))]
+    context = tokenizer.decode(tokens)
+    return context
+
 class contains_metric:
     def compute(predictions, references):
         contains = []
         for pred, label in zip(predictions, references):
             contains.append(int(bool(re.search(re.compile(re.escape(label), re.IGNORECASE), pred))))
         return 1.0 * np.array(contains).sum()/len(contains)
-def load_extraction_evaluation(name = "nq",limit = -1):
+def load_extraction_evaluation(name = "nq",limit = -1, tokenizer = None):
     if(name == "triviaqa"):
         dataset = load_dataset("TimoImhof/TriviaQA-in-SQuAD-format")
         df = dataset["unmodified"].to_pandas()[-1000:]

@@ -25,7 +25,7 @@ class squad_metric:
             refs.append({'answers': {'answer_start': [0], 'text': [label]}, 'id': str(id)})
         results = metric.compute(predictions=preds, references=refs)
         return results
-def load_commonsense_evaluation(name = "nq", limit = -1):
+def load_commonsense_evaluation(name = "nq", limit = -1, tokenizer = None):
     if(name == "nq_open"):
         dataset = load_dataset("nq_open")
         df = dataset["validation"].to_pandas() 

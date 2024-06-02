@@ -45,11 +45,11 @@ def main(args):
     
     for dataset in args.datasets:
         if dataset in ["nq_open", "GSM8K", "MedQUAD"]: #Common Knowledge QA
-            prompts, labels, metrics = load_commonsense_evaluation(dataset, limit = args.limit)
+            prompts, labels, metrics = load_commonsense_evaluation(dataset, limit = args.limit, tokenizer = tokenizer)
         elif dataset in ["code2text", "dialog_summary", "cnn_news"]:
-            prompts, labels, metrics = load_summarization_evaluation(dataset, limit = args.limit)
+            prompts, labels, metrics = load_summarization_evaluation(dataset, limit = args.limit, tokenizer = tokenizer)
         elif dataset in ["triviaqa", "squad", "swde", "drop"]:
-            prompts, labels, metrics = load_extraction_evaluation(dataset, limit = args.limit)
+            prompts, labels, metrics = load_extraction_evaluation(dataset, limit = args.limit, tokenizer = tokenizer)
         else:
             print("No such dataset ", dataset)
         #option: nq_open,  GSM8K, MedQUAD
