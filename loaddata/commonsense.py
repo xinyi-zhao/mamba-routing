@@ -15,7 +15,7 @@ class contains_metric:
         return 1.0 * np.array(contains).sum()/len(contains)
 class squad_metric:
     def compute(predictions, references ):
-        metric = load_metric("squad")
+        metric = load_metric("squad", trust_remote_code=True)
         preds = []
         refs = []
         id = 0

@@ -4,22 +4,93 @@ import argparse
 import time
 import random
 import requests
+import datetime
 import numpy as np
+import os
 from loaddata.commonsense import load_commonsense_evaluation
 from loaddata.summarization import load_summarization_evaluation
 from loaddata.informationextraction import load_extraction_evaluation
+import multiprocessing
 
-device = "cuda"
+
+class TaskProcessor(multiprocessing.Process):
+    def __init__(self, task_queue, batch_size, port, logtime):
+        super().__init__()
+        self.task_queue = task_queue
+        self.batch_size = batch_size  # Number of tasks to accumulate before processing
+        self.port = port
+        self.results = {}
+        self.latency = []
+        self.last_id = -1
+        self.logtime = logtime
+    
+    def run(self):
+        while True:
+            cnt = 0
+            length = len(self.task_queue)
+            ending_pos = -1
+            for i in range(self.last_id + 1, length):
+                if self.task_queue[i]["port"] == self.port:
+                    cnt += 1
+                    if(cnt == self.batch_size):
+                        ending_pos = i + 1
+                        break
+            if ending_pos == -1:
+                ending_pos = length
+                
+            if cnt >= self.batch_size or (ending_pos == length and self.task_queue[length - 1]["port"] == -1):
+                self.call_server(self.last_id + 1, ending_pos)
+                self.last_id = ending_pos - 1
+                
+            if self.task_queue[length - 1]["port"] == -1 and ending_pos == length:
+                self.get_result()
+                break
+    
+    def call_server(self, st, ed):
+        print("port:",self.port, "starting_id:",st,"ending_id:",ed)
+        sending_to_port = []
+        for i in range(st, ed):
+            if self.task_queue[i]["port"] == self.port:
+                sending_to_port.append(self.task_queue[i]["prompt"])
+        if len(sending_to_port) == 0:
+            return 
+        sending_to_port = {"prompts": sending_to_port}
+        url = f"http://127.0.0.1:{self.port}/inference"
+        response = requests.post(url, json = sending_to_port)
+        response = response.json()
+        response_id = 0
+        for i in range(st, ed):
+            if self.task_queue[i]["port"] == self.port:
+                task = self.task_queue[i]
+                dataset = task["dataset"]
+                if dataset not in self.results.keys():
+                    self.results[dataset] = {'output':[],'label':[], 'metrics':task["metrics"]}
+                self.results[dataset]["output"].append(response[str(response_id)])
+                self.results[dataset]["label"].append(task["label"])
+                self.latency.append(time.time() - task["start_time"])
+                response_id += 1
+    
+    def get_result(self):
+        for dataset in self.results.keys():
+            ans = [metric.compute(predictions = self.results[dataset]["output"], references = self.results[dataset]["label"]) for metric in self.results[dataset]["metrics"]]
+            print(dataset, ans)
+        latency = np.array(self.latency)
+        print("port:",self.port, "mean latency:", np.mean(latency), "min:", np.min(latency), "25 per:", np.percentile(latency, 25),"median:", np.percentile(latency, 50), "75 per:", np.percentile(latency, 75),"max:", np.max(latency))
+        np.save(f"latency_results/{self.logtime}/latency_{self.port}.npy", latency)
+    
+
+def task_generator(tasks, task_queue, interval_time):
+    for task in tasks:
+        task["start_time"] = time.time()
+        task_queue.append(task)
+        time.sleep(interval_time)
+    task_queue.append({"port": -1})
 
 def main(args):
-    
-    dataset_port = {}
-    output_dataset = {}
     tasks = []
     dataset_id = 0
-    latency = []
     for dataset in args.datasets:
-        dataset_port[dataset] = args.port[dataset_id]
+        port = args.port[dataset_id]
         dataset_id += 1
         if dataset in ["nq_open", "GSM8K", "MedQUAD"]: #Common Knowledge QA
             prompts, labels, metrics = load_commonsense_evaluation(dataset, limit = args.limit)
@@ -30,61 +101,33 @@ def main(args):
         else:
             print("No such dataset ", dataset)
         for i in range(len(prompts)):
-            tasks.append([prompts[i], labels[i], 0, dataset])
-        output_dataset[dataset]= {'output':[],'label':[], 'metrics':metrics}
+            tasks.append({"prompt":prompts[i], "label":labels[i], "dataset":dataset, "metrics": metrics, "port":port})
+    
     random.shuffle(tasks)
-    port_batched = {}
+    logtime = datetime.datetime.now().strftime("%Y%m%d_%H%M%S").replace(" ", "_").replace("/", "_").replace("\\", "_")
+    os.mkdir(f"latency_results/{logtime}")
+    print("save_dir:", logtime)
     
-    for port in args.port:
-        port_batched[port] = []
-    time_start = time.time()
-    epoch = 0
-    for task in tasks:
-        time.sleep(max(0, time_start + epoch * args.interval_time - time.time()))
-        epoch += 1
-        
-        port = dataset_port[task[-1]]
-        task[2] = time.time()
-        port_batched[port].append(task)
-        if len(port_batched[port]) >= args.batch_size:
-            sending_to_port = []
-            for i in range(len(port_batched[port])):
-                sending_to_port.append(port_batched[port][i][0])
-            sending_to_port = {"prompts": sending_to_port}
-            url = f"http://127.0.0.1:{port}/inference"
-            response = requests.post(url, json = sending_to_port)
-            response = response.json()
-            for i in range(len(port_batched[port])):
-                task = port_batched[port][i]
-                output_dataset[task[-1]]['output'].append(response[str(i)])
-                output_dataset[task[-1]]['label'].append(task[1])
-                latency.append(time.time() - task[2])
-            port_batched[port] = []
-    for port in port_batched:
-        if len(port_batched[port]) == 0:
-            continue
-        sending_to_port = []
-        for i in range(len(port_batched[port])):
-            sending_to_port.append(port_batched[port][i][0])
-        sending_to_port = {"prompts": sending_to_port}
-        url = f"http://127.0.0.1:{port}/inference"
-        response = requests.post(url, json = sending_to_port)
-        response = response.json()
-        for i in range(len(port_batched[port])):
-            task = port_batched[port][i]
-            output_dataset[task[-1]]['output'].append(response[str(i)])
-            output_dataset[task[-1]]['label'].append(task[1])
-            latency.append(time.time() - task[2])
-        port_batched[port] = []
-        
-    result = {}
-    for dataset in output_dataset.keys():
-        result[dataset] = [metric.compute(predictions = output_dataset[dataset]["output"], references = output_dataset[dataset]["label"]) for metric in output_dataset[dataset]["metrics"]]
-    print(result)
-    latency = np.array(latency)
-    print("mean latency:", np.mean(latency))
-    print("min:", np.min(latency), "25 per:", np.percentile(latency, 25),"median:", np.percentile(latency, 50), "75 per:", np.percentile(latency, 75),"max:", np.max(latency))
+    manager = multiprocessing.Manager()
+    task_queue = manager.list()
     
+    generator_process = multiprocessing.Process(target=task_generator, args=(tasks, task_queue, args.interval_time))
+    generator_process.start()
+
+    # Start processors
+    unique_ports = np.unique(np.array(args.port))
+    processors = []
+    for port in unique_ports:
+        processors.append(TaskProcessor(task_queue, args.batch_size, port, logtime))
+    
+    for processor in processors:
+        processor.start()
+
+    # Wait for the generator process to finish (it runs indefinitely until interrupted)
+    generator_process.join()
+    for processor in processors:
+        processor.join()
+     
 
 if __name__ == "__main__":
     #parser = argparse.ArgumentParser(description='Generate text using MambaLMHeadModel')
@@ -93,7 +136,7 @@ if __name__ == "__main__":
     parser.add_argument('--datasets', type=str, nargs='+', default=['GSM8K'], help='Dataset name for commonsense loading')
     parser.add_argument('--limit', type=int, default=-1, help='Limit the number of samples')
     parser.add_argument('--port', type = int, nargs='+', default = ['2001'], help='The model running on the end')
-    parser.add_argument('--interval_time', type = float, nargs='+', default = 0.2, help='The model running on the end')
+    parser.add_argument('--interval_time', type = float, default = 0.2, help='The model running on the end')
     args = parser.parse_args()
 
     main(args)
