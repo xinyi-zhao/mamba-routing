@@ -11,6 +11,7 @@ from semantic_router.encoders import HuggingFaceEncoder, CohereEncoder, OpenAIEn
 from openai import OpenAI
 from transformers import AutoTokenizer, AutoModel
 from sklearn.metrics.pairwise import cosine_similarity
+from ICL_routing import *
 
 commen_sense_tasks = ["nq_open", "GSM8K", "MedQUAD"]
 summarization_tasks = ["code2text", "dialog_summary", "cnn_news"]
@@ -24,31 +25,36 @@ def main(args):
         client = OpenAI(
             # This is the default and can be omitted
             api_key=os.environ.get("OPENAI_API_KEY"),
-        )
+        ) 
         categories = {
-            "nq_open": "Knowledge and common sense derived from Wikipedia.",
-            "GSM8K": "Solving math problems requiring common sense reasoning.",
-            "MedQUAD": "Addressing medical queries with common sense reasoning.",
-            "code2text": "Understanding and summarizing programming code.",
-            "dialog_summary": "Summarization of conversational dialogs.",
-            "cnn_news": "Summarizing news articles from CNN.",
-            "triviaqa": "Extracting information from Wikipedia for context-based question answering.",
-            "squad": "Retrieval tasks for general knowledge, context-based question answering.",
-            "swde": "Extracting information from tables for context-based question answering.",
-            "drop": "Advanced reading comprehension that involves discrete reasoning over text paragraphs for context-based question answering."
+            "nq_open": nq_open_descp,
+            "GSM8K": GSM8K_descp,
+            "MedQUAD": MedQUAD_descp,
+            "code2text": code2text_descp,
+            "dialog_summary": dialog_summary_descp,
+            "cnn_news": cnn_news_descp,
+            "triviaqa": triviaqa_descp,
+            "squad": squad_descp,
+            "swde": swde_descp,
+            "drop": drop_descp
         }
-
-        response = client.completions.create(
-            model="gpt-3.5-turbo-instruct",
-            prompt=f"Categorize the following prompt into one of the categories: {', '.join(categories.keys())}. Prompt: {args.prompt}",
+        separator = '\r\n'
+        categories_formatted = separator.join(f'{key}: {categories[key]}' for key in categories)
+        user_msg = f"Categorize the following prompt into one of the categories: {categories_formatted}. Prompt: {args.prompt}"
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role":"user", "content":user_msg}
+            ],
             max_tokens = 50
         )
     
-        # Extract the category from the response
-        category = response.choices[0].text.strip() 
+        # # Extract the category from the response
+        category = response.choices[0].message.content.strip() 
         model_name = parse(category)   
     # semantic routing
     elif model == "semantic":
+        tokenizer = load_tokenizer()
         routes =[]
         data = []
         n = args.limit
@@ -56,11 +62,11 @@ def main(args):
 
         for task in tasks:
             if task in commen_sense_tasks:
-                prompts, labels, metrics = load_commonsense_evaluation(task, limit = limit)
+                prompts, _, _ = load_commonsense_evaluation(task, limit = limit, tokenizer = tokenizer)
             elif task in summarization_tasks:
-                prompts, labels, metrics = load_summarization_evaluation(task, limit = limit)
+                prompts, _, _ = load_summarization_evaluation(task, limit = limit, tokenizer = tokenizer)
             elif task in context_tasks:
-                prompts, labels, metrics = load_extraction_evaluation(task, limit = limit)
+                prompts, _, _ = load_extraction_evaluation(task, limit = limit, tokenizer = tokenizer)
             route = Route(
                     name=task,
                     utterances = prompts[:n],
@@ -94,6 +100,7 @@ def main(args):
             print("Updated route thresholds:", route_thresholds)
 
         model_name = rl(args.prompt).name
+    # vector similarities
     elif model == "vector":
         sentences = [args.prompt]
         embeddings = get_embeddings(sentences, args.limit)
@@ -111,6 +118,44 @@ def main(args):
         }
         index = calculate_max_similarities(embeddings, args.limit)
         model_name = model_index[index]
+    # in context learning 
+    elif model == "ICL": 
+        client = OpenAI(
+            # This is the default and can be omitted
+            api_key=os.environ.get("OPENAI_API_KEY"),
+        ) 
+        response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": parsed_system_msg},
+            {"role": "user", "content": prompt_prefix + nq_open_msg},
+            {"role": "assistant", "content": "nq_open"},
+            {"role": "user", "content": prompt_prefix + GSM8K_msg},
+            {"role": "assistant", "content": "GSM8K"},
+            {"role": "user", "content": prompt_prefix + MedQUAD_msg},
+            {"role": "assistant", "content": "MedQUAD"},
+            {"role": "user", "content": prompt_prefix + code2text_msg},
+            {"role": "assistant", "content": "code2text"},
+            {"role": "user", "content": prompt_prefix + dialog_summary_msg},
+            {"role": "assistant", "content": "dialog_summary"},
+            {"role": "user", "content": prompt_prefix + cnn_news_msg},
+            {"role": "assistant", "content": "cnn_news"},
+            {"role": "user", "content": prompt_prefix + triviaqa_msg},
+            {"role": "assistant", "content": "triviaqa"},
+            {"role": "user", "content": prompt_prefix + squad_msg},
+            {"role": "assistant", "content": "squad"},
+            {"role": "user", "content": prompt_prefix + swde_msg},
+            {"role": "assistant", "content": "swde"},
+            {"role": "user", "content": prompt_prefix + drop_msg},
+            {"role": "assistant", "content": "drop"},
+            {"role": "user", "content": args.prompt}
+        ]
+        )
+    
+        # Extract the category from the response
+        category = response.choices[0].message.content.strip() 
+        model_name = parse(category)   
+
     else:
         print(" ===== Wrong Model Name ===== ")
 
@@ -119,7 +164,7 @@ def main(args):
 def parse(category):
     model_names =["nq_open", "GSM8K", "MedQUAD", "code2text", "dialog_summary", "cnn_news", "triviaqa", "squad", "swde", "drop"]
     for model_name in model_names:
-        if model_name in category.lower():
+        if model_name.lower() in category.lower():
             return model_name
     # set default to None
     return None
@@ -132,11 +177,11 @@ def get_embeddings(sentences, limit = 2):
     # add utterences into sentences
     for task in tasks:
         if task in commen_sense_tasks:
-            prompts, labels, metrics = load_commonsense_evaluation(task, limit = limit)
+            prompts, _, _ = load_commonsense_evaluation(task, limit = limit, tokenizer=tokenizer)
         elif task in summarization_tasks:
-            prompts, labels, metrics = load_summarization_evaluation(task, limit = limit)
+            prompts,  _, _ = load_summarization_evaluation(task, limit = limit, tokenizer=tokenizer)
         elif task in context_tasks:
-            prompts, labels, metrics = load_extraction_evaluation(task, limit = limit)
+            prompts,  _, _ = load_extraction_evaluation(task, limit = limit, tokenizer=tokenizer)
         sentences.extend(prompts)
     # Apply tokenizer
     inputs = tokenizer(sentences, padding=True, truncation=True, return_tensors='pt')
@@ -169,14 +214,24 @@ def mean_pooling(token_embeddings, mask):
     token_embeddings = token_embeddings.masked_fill(~mask[..., None].bool(), 0.)
     sentence_embeddings = token_embeddings.sum(dim=1) / mask.sum(dim=1)[..., None]
     return sentence_embeddings
-    
+
+def load_tokenizer():
+    if args.tokenizer.find("state-spaces/mamba") != -1:
+        tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"
+    return tokenizer
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='User Defined Router')
     parser.add_argument('--limit', type=int, default=15, help='Utterance Number')
     parser.add_argument('--encoder', type=str, default="huggingface", help='Model Name')
     parser.add_argument('--optimize', action='store_true', help='Flag to trigger optimization')
     parser.add_argument('--prompt', type=str, help='A prompt string')
-    parser.add_argument('--model', type=str, help='Using semantic routing, or gpt or vector similarities')
+    parser.add_argument('--model', type=str, help='Using semantic routing, gpt, vector similarities or ICL')
+    parser.add_argument('--tokenizer', type=str, help='tokenizer')
 
     args = parser.parse_args()
 

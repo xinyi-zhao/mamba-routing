@@ -80,13 +80,19 @@ python finetune.py --dataset nq_open  --limit 300 --num_epochs 3
 - routing between three types of tasks
 - routing inside each types of task(different domain)
 
-- ```limit```: # of utterance loaded from dataset
+- ```limit```: semantic routing/ vector similarities: # of utterance loaded from dataset
 - ```encoder``` encoder type: huggingface, openai, cohere
 - ```gpt``` using LLM model or semantic routing
-- ```optimze``` whether to optimize the semantic routing model
+- ```optimze``` whether to optimize the semantic routing model, for semantic routing only
 - ```prompt``` prompt
+- ```model``` routing model: semantic routing, vector similarities, ICL, or GPT
+- ```tokenizer``` for loading tokenizer
+
 ```console
-python3 routing.py --limit 5 --encoder huggingface  --optimize --gpt --prompt " Still searching for their first win, the Bengals flew to Texas Stadium for a Week 5 interconference duel with the Dallas Cowboys.  In the first quarter, Cincinnati trailed early as Cowboys kicker Nick Folk got a 30-yard field goal, along with RB Felix Jones getting a 33-yard TD run.  In the second quarter, Dallas increased its lead as QB Tony Romo completed a 4-yard TD pass to TE Jason Witten.  The Bengals would end the half with kicker Shayne Graham getting a 41-yard and a 31-yard field goal. In the third quarter, Cincinnati tried to rally as QB Carson Palmer completed an 18-yard TD pass to WR T. J. Houshmandzadeh.  In the fourth quarter, the Bengals got closer as Graham got a 40-yard field goal, yet the Cowboys answered with Romo completing a 57-yard TD pass to WR Terrell Owens.  Cincinnati tried to come back as Palmer completed a 10-yard TD pass to Houshmandzadeh (with a failed 2-point conversion), but Dallas pulled away with Romo completing a 15-yard TD pass to WR Patrick Crayton.Which Bengals receiver scored two touchdowns?"
+    python3 routing.py --limit 2 --encoder huggingface  --optimize --model vector --tokenizer state-spaces/mamba --prompt "A clothing company has 4 different kinds of sweatshirts. Each year, the company makes 60,000 of each kind of sweatshirt. How many sweatshirts does the company make each year?"
+```
+```console
+    python3 routing.py --limit 20 --encoder huggingface  --optimize --model semantic --tokenizer state-spaces/mamba  --prompt "A clothing company has 4 different kinds of sweatshirts. Each year, the company makes 60,000 of each kind of sweatshirt. How many sweatshirts does the company make each year?"
 ```
 
 ## Todo
