@@ -86,12 +86,13 @@ python finetune.py --dataset nq_open  --limit 300 --num_epochs 3
 - ```optimze``` whether to optimize the semantic routing model, for semantic routing only
 - ```prompt``` prompt
 - ```model``` routing model: semantic routing, vector similarities, ICL, or GPT
+- ```tokenizer``` for loading tokenizer
 
 ```console
-    python3 routing.py --limit 2 --encoder huggingface  --optimize --model vector --prompt "A clothing company has 4 different kinds of sweatshirts. Each year, the company makes 60,000 of each kind of sweatshirt. How many sweatshirts does the company make each year?"
+    python3 routing.py --limit 2 --encoder huggingface  --optimize --model vector --tokenizer state-spaces/mamba --prompt "A clothing company has 4 different kinds of sweatshirts. Each year, the company makes 60,000 of each kind of sweatshirt. How many sweatshirts does the company make each year?"
 ```
 ```console
-    python3 routing.py --limit 20 --encoder huggingface  --optimize --model semantic --prompt "A clothing company has 4 different kinds of sweatshirts. Each year, the company makes 60,000 of each kind of sweatshirt. How many sweatshirts does the company make each year?"
+    python3 routing.py --limit 20 --encoder huggingface  --optimize --model semantic --tokenizer state-spaces/mamba  --prompt "A clothing company has 4 different kinds of sweatshirts. Each year, the company makes 60,000 of each kind of sweatshirt. How many sweatshirts does the company make each year?"
 ```
 
 ## Todo
