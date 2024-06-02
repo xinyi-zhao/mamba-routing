@@ -54,7 +54,7 @@ def main(args):
         model_name = parse(category)   
     # semantic routing
     elif model == "semantic":
-        tokenizer = AutoTokenizer.from_pretrained('facebook/contriever')
+        tokenizer = load_tokenizer()
         routes =[]
         data = []
         n = args.limit
