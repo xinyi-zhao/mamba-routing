@@ -14,14 +14,14 @@ from sklearn.metrics.pairwise import cosine_similarity
 from ICL_routing import *
 import time
 
-TEST = 80
+TEST = 30
 
 commen_sense_tasks = ["nq_open", "GSM8K", "MedQUAD"]
 summarization_tasks = ["code2text", "dialog_summary", "cnn_news"]
 context_tasks = ["triviaqa", "squad", "swde", "drop"]
 tasks = commen_sense_tasks + summarization_tasks + context_tasks
 
-TOGETHER_API_KEY = "77e2c2cf255a71c3c12c6010cb94809f705dd6321b6526a08f389c63530b60bb"
+TOGETHER_API_KEY = ""
 def together_call(prompt,  max_tokens = 1024):
     local_model = "meta-llama/Llama-3-70b-chat-hf"
     client = OpenAI(
@@ -158,7 +158,7 @@ def main(args):
         tokenizer = load_tokenizer()
         routes, data, test_set = [],[],[]
         n = args.limit
-        limit = args.limit * 2 if args.optimize else args.limit
+        limit = args.limit * 3 if args.optimize else args.limit
         # test set for each subtask
         total = limit + TEST
         for task in tasks:
