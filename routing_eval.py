@@ -268,34 +268,6 @@ def main(args):
             cnt += 1
             if cnt % 10 ==0:
                 print(cnt)
-            # response = client.chat.completions.create(
-            #     model="gpt-4o",
-            #     messages=[
-            #         {"role": "system", "content": parsed_system_msg},
-            #         {"role": "user", "content": prompt_prefix + nq_open_msg},
-            #         {"role": "assistant", "content": "nq_open"},
-            #         {"role": "user", "content": prompt_prefix + GSM8K_msg},
-            #         {"role": "assistant", "content": "GSM8K"},
-            #         {"role": "user", "content": prompt_prefix + MedQUAD_msg},
-            #         {"role": "assistant", "content": "MedQUAD"},
-            #         {"role": "user", "content": prompt_prefix + code2text_msg},
-            #         {"role": "assistant", "content": "code2text"},
-            #         {"role": "user", "content": prompt_prefix + dialog_summary_msg},
-            #         {"role": "assistant", "content": "dialog_summary"},
-            #         {"role": "user", "content": prompt_prefix + cnn_news_msg},
-            #         {"role": "assistant", "content": "cnn_news"},
-            #         {"role": "user", "content": prompt_prefix + triviaqa_msg},
-            #         {"role": "assistant", "content": "triviaqa"},
-            #         {"role": "user", "content": prompt_prefix + squad_msg},
-            #         {"role": "assistant", "content": "squad"},
-            #         {"role": "user", "content": prompt_prefix + swde_msg},
-            #         {"role": "assistant", "content": "swde"},
-            #         {"role": "user", "content": prompt_prefix + drop_msg},
-            #         {"role": "assistant", "content": "drop"},
-            #         {"role": "user", "content": args.prompt}
-            #     ]
-            # )
-            # print(test_case)
             response = together_call(test_case, 1024)
         
             # Extract the category from the response
