@@ -6,6 +6,8 @@ import re
 import gc
 from .finetunedataset import FinetuneDataModumn
 
+import random
+
 class contains_metric:
     def compute(predictions, references):
         contains = []
@@ -87,6 +89,7 @@ def load_commonsense_training(name, tokenizer, limit = -1):
             cnt += 1
             if limit > -1 and cnt == limit:
                 break
+        print("loaded", cnt, "of nq_open")
     
     if(name == "GSM8K" or name == "commonsense"):
         dataset = load_dataset("gsm8k", "main")
@@ -100,6 +103,7 @@ def load_commonsense_training(name, tokenizer, limit = -1):
             cnt += 1
             if limit > -1 and cnt == limit:
                 break
+        print("loaded", cnt, "of GSM8K")
     
     if(name == "MedQUAD" or name == "commonsense"):
         dataset = load_dataset("keivalya/MedQuad-MedicalQnADataset")
@@ -113,4 +117,10 @@ def load_commonsense_training(name, tokenizer, limit = -1):
             labels.append(label)
             if limit > -1 and cnt == limit:
                 break
+        print("loaded", cnt, "of MedQUAD")
+
+    binded = list(zip(prompts, labels))
+    random.shuffle(binded)
+    prompts, labels = zip(*binded)
+
     return FinetuneDataModumn(tokenizer, prompts, labels)

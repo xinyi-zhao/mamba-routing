@@ -9,23 +9,14 @@ from loaddata.informationextraction import load_extraction_evaluation
 import tqdm
 import argparse
 import time
-import os
-from getpass import getpass
+from multiprocessing import Pool
+from functools import partial
 
-device = "cuda"
-def main(args):
-    if device == "cuda":
-        torch.cuda.empty_cache()
-        
+def run_eval(args, num):
     batch_size = args.batch_size
-
-    access_token = ""
 
     if args.model.find("state-spaces/mamba") != -1:
         tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
-    elif args.model.find("llama") != -1 or args.model.find("Mistral") != -1:
-        access_token = os.getenv("HUGGINGFACE_API_KEY") or getpass("Enter HuggingFace API Key: ")
-        tokenizer = AutoTokenizer.from_pretrained(args.model, token=access_token)
     else:
         tokenizer = AutoTokenizer.from_pretrained(args.model)
     tokenizer.pad_token = tokenizer.eos_token
@@ -39,8 +30,6 @@ def main(args):
         model = GPTNeoXForCausalLM.from_pretrained(args.model, torch_dtype=torch.float16).cuda()
     elif args.model.find("opt") != -1:
         model = OPTForCausalLM.from_pretrained(args.model, torch_dtype=torch.float16).cuda()
-    elif args.model.find("llama") != -1 or args.model.find("Mistral") != -1:
-        model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype=torch.bfloat16, token=access_token).cuda()
     else:
         print("!!! model not supported")
     print(">>>>>>>>>>>>>> loaded pretrained from", args.model)
@@ -50,6 +39,8 @@ def main(args):
         print(">>>>>>>>>>>>>> loaded checkpoint from", args.checkpoint)
     
     result = {}
+
+    start_time = time.time()
     
     for dataset in args.datasets:
         if dataset in ["nq_open", "GSM8K", "MedQUAD"]: #Common Knowledge QA
@@ -69,11 +60,11 @@ def main(args):
         for i in tqdm.tqdm(range(0, len(prompts), batch_size), desc="Generating outputs"):
             # Determine the size of the current batch (it may be less than batch_size at the end)
             end_index = min(i + batch_size, len(prompts))
-            inputs = tokenizer.batch_encode_plus(prompts[i:end_index], padding = True, return_tensors='pt', truncation = True, max_length = 200)
+            inputs = tokenizer.batch_encode_plus(prompts[i:end_index], padding = True, return_tensors='pt')
             inputs = inputs.to(device)
             input_batch = inputs.input_ids  # Get batch of input_ids
             start = time.time()
-            if args.model.find("gpt-neo") != -1 or args.model.find("pythia") != -1 or args.model.find("Mistral") != -1:
+            if args.model.find("gpt-neo") != -1 or args.model.find("pythia") != -1:
                 outputs = model.generate(
                     input_ids = input_batch,
                     max_length=300,
@@ -95,13 +86,40 @@ def main(args):
                 input_tokens += input_length
                 output_tokens += len(output) - input_length
         result[dataset] = [metric.compute(predictions = generated_texts, references = labels) for metric in metrics]
-        print("dataset: %s\nlatency: %f\nnumber of input tokens: %d\nnumber of output tokens: %d\nouput tokens / sec: %f" % (dataset, time_taken, input_tokens, output_tokens, output_tokens/time_taken))
+        print("model.generate latency: %f" % (time_taken))
         print(f"Cuda Memory reserved: {torch.cuda.max_memory_reserved() / 1e9:.02f} GB")
+
+    end_time = time.time()
+    time_process = end_time - start_time
+    print("proc:", num,"start time:", start_time, "end time:", end_time, "time taken:", time_process)
     print(result)
+    return time_process
+
+
+device = "cuda"
+def main(args):
+    if device == "cuda":
+        torch.cuda.empty_cache()
+
+    proc = partial(run_eval, args)
+
+    num_proc = 1
+
+    overall_start = time.time()
+
+    with Pool(num_proc) as p:
+        proc_time = p.map(proc, [i for i in range(num_proc)])
+        print(proc_time)
+        print("avg proc time:", sum(proc_time)/num_proc)
+
+    overall_end = time.time()
+
+    print("total time taken for %d procs: %f" % (num_proc, overall_end - overall_start))
+    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate text using MambaLMHeadModel')
-    parser.add_argument('--batch_size', type=int, default=32, help='Batch size for generation')
+    parser.add_argument('--batch_size', type=int, default=16, help='Batch size for generation')
     parser.add_argument('--datasets', type=str, nargs='+', default=['GSM8K'], help='Dataset name for commonsense loading')
     parser.add_argument('--limit', type=int, default=-1, help='Limit the number of samples')
     parser.add_argument('--model', type=str, default="state-spaces/mamba-790m", help='Model Name')

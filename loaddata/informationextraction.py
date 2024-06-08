@@ -5,7 +5,11 @@ from evaluate import load
 import re
 from .finetunedataset import FinetuneDataModumn
 
-def truncate(context, tokenizer, length = 1500):
+import random
+
+truncate_len = 400
+
+def truncate(context, tokenizer, length = truncate_len):
     tokens = tokenizer.encode(context, return_tensors = "pt")[0]
     tokens = tokens[:min(length, len(tokens))]
     context = tokenizer.decode(tokens)
@@ -24,7 +28,7 @@ def load_extraction_evaluation(name = "nq",limit = -1, tokenizer = None):
         prompts = []
         labels = []
         for _ , row in df.iterrows():
-            prompt = row["context"] + row["question"] + "Answer:"
+            prompt = truncate(row["context"], tokenizer, truncate_len) + row["question"] + "Answer:"
             label = row["answers"]["text"][0]
             prompts.append(prompt)
             labels.append(label)
@@ -38,7 +42,7 @@ def load_extraction_evaluation(name = "nq",limit = -1, tokenizer = None):
         prompts = []
         labels = []
         for _ , row in df.iterrows():
-            prompt = row["context"] + row["question"] + "Answer:"
+            prompt = truncate(row["context"], tokenizer, truncate_len) + row["question"] + "Answer:"
             label = row["answers"]["text"][0]
             prompts.append(prompt)
             labels.append(label)
@@ -52,7 +56,7 @@ def load_extraction_evaluation(name = "nq",limit = -1, tokenizer = None):
         prompts = []
         labels = []
         for _ , row in df.iterrows():
-            prompt = row["text"]
+            prompt =  truncate(row["text"], tokenizer, truncate_len)
             label = row["value"]
             prompts.append(prompt)
             labels.append(label)
@@ -68,7 +72,7 @@ def load_extraction_evaluation(name = "nq",limit = -1, tokenizer = None):
         for _ , row in df.iterrows():
             if (row["answers_spans"]["types"][0] != 'span'):
                 continue
-            prompt = row["passage"] + row["question"] + "Answer:"
+            prompt =  truncate(row["passage"], tokenizer, truncate_len) + row["question"] + "Answer:"
             label = row["answers_spans"]["spans"][0]
             prompts.append(prompt)
             labels.append(label)
@@ -85,7 +89,7 @@ def load_extraction_training(name ,tokenizer, limit = -1):
         df = dataset["unmodified"].to_pandas()[:-1000]
         cnt = 0
         for _ , row in df.iterrows():
-            prompt = row["context"] + row["question"] + "Answer:"
+            prompt = truncate(row["context"], tokenizer, truncate_len) + row["question"] + "Answer:"
             label = row["answers"]["text"][0]
             prompts.append(prompt)
             labels.append(label)
@@ -98,7 +102,7 @@ def load_extraction_training(name ,tokenizer, limit = -1):
         df = dataset["train"].to_pandas()
         cnt = 0
         for _ , row in df.iterrows():
-            prompt = row["context"] + row["question"] + "Answer:"
+            prompt = truncate(row["context"], tokenizer, truncate_len) + row["question"] + "Answer:"
             label = row["answers"]["text"][0]
             cnt += 1
             prompts.append(prompt)
@@ -111,7 +115,7 @@ def load_extraction_training(name ,tokenizer, limit = -1):
         df = dataset["validation"].to_pandas()[:-300]
         cnt = 0
         for _ , row in df.iterrows():
-            prompt = row["text"]
+            prompt = truncate(row["text"], tokenizer, truncate_len)
             label = row["value"]
             prompts.append(prompt)
             labels.append(label)
@@ -126,11 +130,16 @@ def load_extraction_training(name ,tokenizer, limit = -1):
         for _ , row in df.iterrows():
             if (row["answers_spans"]["types"][0] != 'span'):
                 continue
-            prompt = row["passage"] + row["question"] + "Answer:"
+            prompt = truncate(row["passage"], tokenizer, truncate_len) + row["question"] + "Answer:"
             label = row["answers_spans"]["spans"][0]
             prompts.append(prompt)
             labels.append(label)
             cnt += 1
             if limit > -1 and cnt == limit:
                 break
+
+    binded = list(zip(prompts, labels))
+    random.shuffle(binded)
+    prompts, labels = zip(*binded)
+    
     return FinetuneDataModumn(tokenizer, prompts, labels)

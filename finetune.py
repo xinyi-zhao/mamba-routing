@@ -45,7 +45,7 @@ def run(args):
             optim=args.optim,
             output_dir=f"{args.save_path}/{get_name(args.model)}_{get_name(args.dataset)}",
             logging_steps=50,
-            save_steps=200,
+            save_steps=100,
         ),
         data_collator=data_module.data_collator,
     )
@@ -56,16 +56,16 @@ def run(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="state-spaces/mamba-370m")
+    parser.add_argument("--model", type=str, default="state-spaces/mamba-790m")
     parser.add_argument("--dataset", type=str, default = "nq_open")
     parser.add_argument("--tokenizer", type=str, default="EleutherAI/gpt-neox-20b")
     parser.add_argument("--learning_rate", type=float, default=5e-5)
-    parser.add_argument("--batch_size", type=int, default=4)
+    parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
     parser.add_argument("--optim", type=str, default="adamw_torch")
-    parser.add_argument("--num_epochs", type=int, default=1)
+    parser.add_argument("--num_epochs", type=int, default=3)
     parser.add_argument("--save_path", type=str, default = "saved_models")
-    parser.add_argument("--limit", type=int, default = -1)
+    parser.add_argument("--limit", type=int, default = 3000)
     args = parser.parse_args()
 
     run(args)

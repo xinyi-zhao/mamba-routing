@@ -8,7 +8,7 @@ from tqdm import tqdm
 from torch.utils.data import Dataset
 
 class FinetuneDataset(Dataset):
-    def __init__(self, tokenizer, prompts, labels, max_tokens = 2000):
+    def __init__(self, tokenizer, prompts, labels, max_tokens = 600):
         super(FinetuneDataset, self).__init__()
         all_input_ids = []
         inputs = []
