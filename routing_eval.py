@@ -14,18 +14,18 @@ from sklearn.metrics.pairwise import cosine_similarity
 from ICL_routing import *
 import time
 
-TEST = 30
+TEST = 80
 
 commen_sense_tasks = ["nq_open", "GSM8K", "MedQUAD"]
 summarization_tasks = ["code2text", "dialog_summary", "cnn_news"]
 context_tasks = ["triviaqa", "squad", "swde", "drop"]
 tasks = commen_sense_tasks + summarization_tasks + context_tasks
 
-TOGETHER_API_KEY = ""
+
 def together_call(prompt,  max_tokens = 1024):
     local_model = "meta-llama/Llama-3-70b-chat-hf"
     client = OpenAI(
-        api_key=TOGETHER_API_KEY,
+        api_key=os.environ.get("TOGETHER_API_KEY"),
         base_url='https://api.together.xyz',
 
     )
@@ -65,7 +65,7 @@ def together_call(prompt,  max_tokens = 1024):
 def one_single_message(prompt,  max_tokens = 1024):
     local_model = "meta-llama/Llama-3-70b-chat-hf"
     client = OpenAI(
-        api_key=TOGETHER_API_KEY,
+        api_key=os.environ.get("TOGETHER_API_KEY"),
         base_url='https://api.together.xyz',
 
     )
@@ -84,9 +84,6 @@ def one_single_message(prompt,  max_tokens = 1024):
 def main(args):
     # Using LLM for routing name 
     model = args.model
-    start_time = time.time()
-    s=time.gmtime(start_time)
-    print("Start time is {}".format(time.strftime("%Y-%m-%d %H:%M:%S", s)))
     if model == "gpt":
         client = OpenAI(
             # This is the default and can be omitted
@@ -121,6 +118,9 @@ def main(args):
         accuracy = 0
         cnt = 0
         
+        start_time = time.time()
+        s=time.gmtime(start_time)
+        print("Start time is {}".format(time.strftime("%Y-%m-%d %H:%M:%S", s)))
         for test_case, task_name in test_list:
             cnt += 1
             if cnt % 10 ==0:
@@ -196,10 +196,14 @@ def main(args):
         accuracy = 0 
         cnt = 1
         print("The length of test set is {}".format(len(test_set)))
+        start_time = time.time()
+        s=time.gmtime(start_time)
+        print("Start time is {}".format(time.strftime("%Y-%m-%d %H:%M:%S", s)))
         for test_case, subtask in test_set:
             if cnt % 10 == 0:
                 print(cnt)
             actual_subtask = rl(test_case).name
+            time.sleep(0.2)
             if actual_subtask == subtask:
                 accuracy += 1
             else:
@@ -229,6 +233,9 @@ def main(args):
 
         print(len(detached_embeddings_load), len(embeddings_prompt))
         cnt = 1
+        start_time = time.time()
+        s=time.gmtime(start_time)
+        print("Start time is {}".format(time.strftime("%Y-%m-%d %H:%M:%S", s)))
         for i in range(len(embeddings_prompt)): 
             if cnt % 10 == 0:
                 print(cnt)
@@ -264,6 +271,9 @@ def main(args):
         accuracy = 0
         # print(f"Categorize the following prompt into one of the categories: \r\n{categories_formatted}. Prompt: {test_list[0][0]}")
         cnt = 0
+        start_time = time.time()
+        s=time.gmtime(start_time)
+        print("Start time is {}".format(time.strftime("%Y-%m-%d %H:%M:%S", s)))
         for test_case, task_name in test_list:
             cnt += 1
             if cnt % 10 ==0:

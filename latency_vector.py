@@ -46,7 +46,7 @@ class TaskProcessor(multiprocessing.Process):
             if self.task_queue[length - 1]["port"] == -1 and ending_pos == length:
                 self.get_result()
                 break
-    
+
     def call_server(self, st, ed):
         print("port:",self.port, "starting_id:",st,"ending_id:",ed)
         sending_to_port = []
@@ -86,10 +86,10 @@ def task_generator(tasks, task_queue, interval_time, port_map, model_map, embedd
         task["start_time"] = time.time()
         model_index = calculate_max_similarities(task["prompt"], router_embedding, n = num_vector)
         model_name = model_map[model_index]
-        
         if task["dataset"] != model_name:
             print(model_name)
-
+        else:
+            print("Match {}".format(model_name))
         task["dataset"] = model_name
         if model_name in port_map:
             task["port"] = port_map[model_name]
@@ -121,10 +121,10 @@ def main(args):
             tasks.append({"prompt":prompts[i], "label":labels[i], "dataset":dataset, "metrics": metrics, "port":port})
         for i in range(args.limit, len(prompts)):
             embedding_task.append({"prompt":prompts[i]})
-    
     random.shuffle(tasks)
     logtime = datetime.datetime.now().strftime("%Y%m%d_%H%M%S").replace(" ", "_").replace("/", "_").replace("\\", "_")
-    os.mkdir(f"latency_results/{logtime}")
+    os.makedirs("latency_results", exist_ok=True)
+    os.makedirs(f"latency_results/{logtime}", exist_ok=True)
     print("save_dir:", logtime)
     
     manager = multiprocessing.Manager()
@@ -132,6 +132,7 @@ def main(args):
     
     generator_process = multiprocessing.Process(target=task_generator, args=(tasks, task_queue, args.interval_time, port_map, model_map, embedding_task, args.vectorNum))
     generator_process.start()
+    generator_process.join()
 
     # Start processors
     unique_ports = np.unique(np.array(args.port))
@@ -152,9 +153,9 @@ if __name__ == "__main__":
     #parser = argparse.ArgumentParser(description='Generate text using MambaLMHeadModel')
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size for generation')
-    parser.add_argument('--datasets', type=str, nargs='+', default=['GSM8K'], help='Dataset name for commonsense loading')
-    parser.add_argument('--limit', type=int, default=-1, help='Limit the number of samples')
-    parser.add_argument('--port', type = int, nargs='+', default = ['2001'], help='The model running on the end')
+    parser.add_argument('--datasets', type=str, nargs='+', default=['GSM8K', 'nq_open'], help='Dataset name for commonsense loading')
+    parser.add_argument('--limit', type=int, default=10, help='Limit the number of samples')
+    parser.add_argument('--port', type = int, nargs='+', default = ['2001','2003'], help='The model running on the end')
     parser.add_argument('--interval_time', type = float, default = 0.2, help='The model running on the end')
     parser.add_argument('--vectorNum', type=int, default=3, help='The number of vector embeddings per dataset')
     
