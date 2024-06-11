@@ -23,20 +23,20 @@ def ICL(prompt, dataset = "nq_open", limit = 2, tokenizer = "EleutherAI/gpt-neox
     prefixed_prompt = create_prompt(examples, final_question=args.prompt)
     print(prefixed_prompt)
     return prefixed_prompt
-    
+
 def create_prompt(examples, final_question):
     # Initialize the prompt with an introduction
     prompt = "In this prompt, I'm providing examples of question and answer pairs. Please consider these examples before responding to the question that follows.\n\n"
-    
+
     # Add each example to the prompt
     for i, (question, answer) in enumerate(examples, 1):
         prompt += f"Example {i}:\nQ: {question}\nA: {answer}\n\n"
-    
+
     # Add the final question to the prompt
     prompt += f"Based on the above examples, now I would like to ask:\nQ: {final_question}\n"
 
     return prompt
-   
+
 
 def main(args):
     n_shot_prompt = ICL(args.prompt, args.dataset, args.limit, args.tokenizer)
@@ -56,6 +56,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args)
-    
-    
-    
+
+

@@ -16,7 +16,7 @@ from ICL_routing import *
 commen_sense_tasks = ["nq_open", "GSM8K", "MedQUAD"]
 summarization_tasks = ["code2text", "dialog_summary", "cnn_news"]
 context_tasks = ["triviaqa", "squad", "swde", "drop"]
-tasks = commen_sense_tasks + summarization_tasks + context_tasks
+TASKS = commen_sense_tasks + summarization_tasks + context_tasks
 
 def main(args):
     # Using LLM for routing name 
@@ -60,7 +60,7 @@ def main(args):
         n = args.limit
         limit = args.limit * 3 if args.optimize else args.limit
 
-        for task in tasks:
+        for task in TASKS:
             if task in commen_sense_tasks:
                 prompts, _, _ = load_commonsense_evaluation(task, limit = limit, tokenizer = tokenizer)
             elif task in summarization_tasks:
@@ -102,22 +102,9 @@ def main(args):
         model_name = rl(args.prompt).name
     # vector similarities
     elif model == "vector":
-        sentences = [args.prompt]
-        embeddings = get_embeddings(sentences, args.limit)
-        model_index = {
-            1: "nq_open",
-            2: "GSM8K",
-            3: "MedQUAD",
-            4: "code2text",
-            5: "dialog_summary",
-            6: "cnn_news",
-            7: "triviaqa",
-            8: "squad",
-            9: "swde",
-            10: "drop"
-        }
-        index = calculate_max_similarities(embeddings, args.limit)
-        model_name = model_index[index]
+        router_embeddings = get_vector_model()
+        model_name = get_model_name(args.prompt, router_embeddings, limit = args.limit)
+
     # in context learning 
     elif model == "ICL": 
         client = OpenAI(
@@ -161,6 +148,29 @@ def main(args):
 
     print("Prompt: {}\r\nModel: {}".format(args.prompt, model_name))
     
+def get_model_name(prompt_embedding, router_embeddings, limit):
+    model_index = {
+            1: "nq_open",
+            2: "GSM8K",
+            3: "MedQUAD",
+            4: "code2text",
+            5: "dialog_summary",
+            6: "cnn_news",
+            7: "triviaqa",
+            8: "squad",
+            9: "swde",
+            10: "drop"
+        }
+    index = calculate_max_similarities(prompt_embedding, router_embeddings, limit )
+    model_name = model_index[index]
+    return model_name 
+
+def get_vector_model():
+    sentences = []
+    embeddings = get_embeddings(sentences, args.limit)
+    return embeddings
+    
+
 def parse(category):
     model_names =["nq_open", "GSM8K", "MedQUAD", "code2text", "dialog_summary", "cnn_news", "triviaqa", "squad", "swde", "drop"]
     for model_name in model_names:
@@ -173,15 +183,15 @@ def parse(category):
 def get_embeddings(sentences, limit = 2):
     tokenizer = AutoTokenizer.from_pretrained('facebook/contriever')
     model = AutoModel.from_pretrained('facebook/contriever')
-
+    tokenizer2 = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
     # add utterences into sentences
-    for task in tasks:
+    for task in TASKS:
         if task in commen_sense_tasks:
-            prompts, _, _ = load_commonsense_evaluation(task, limit = limit, tokenizer=tokenizer)
+            prompts, _, _ = load_commonsense_evaluation(task, limit = limit, tokenizer=tokenizer2)
         elif task in summarization_tasks:
-            prompts,  _, _ = load_summarization_evaluation(task, limit = limit, tokenizer=tokenizer)
+            prompts,  _, _ = load_summarization_evaluation(task, limit = limit, tokenizer=tokenizer2)
         elif task in context_tasks:
-            prompts,  _, _ = load_extraction_evaluation(task, limit = limit, tokenizer=tokenizer)
+            prompts,  _, _ = load_extraction_evaluation(task, limit = limit, tokenizer=tokenizer2)
         sentences.extend(prompts)
     # Apply tokenizer
     inputs = tokenizer(sentences, padding=True, truncation=True, return_tensors='pt')
@@ -193,11 +203,27 @@ def get_embeddings(sentences, limit = 2):
     embeddings = mean_pooling(outputs[0], inputs['attention_mask'])
     return embeddings
 
-def calculate_max_similarities(embeddings, n=2) -> int:
-    tensor_detached = embeddings.detach()
+def get_embeddings_dataset(embedding_tasks):
+    tokenizer = AutoTokenizer.from_pretrained('facebook/contriever')
+    model = AutoModel.from_pretrained('facebook/contriever')
+    sentences = []
+    for embedding_task in embedding_tasks:
+        sentences.append(embedding_task["prompt"])
+    # Apply tokenizer
+    inputs = tokenizer(sentences, padding=True, truncation=True, return_tensors='pt')
+
+    # Compute token embeddings
+    outputs = model(**inputs)
+
+    # Mean pooling
+    embeddings = mean_pooling(outputs[0], inputs['attention_mask'])
+    return embeddings
+
+def calculate_max_similarities(prompt, router_embeddings, n=2) -> int:
+    prompt = get_embedding_for_one_sentence(prompt).detach().numpy()
+    tensor_detached = router_embeddings.detach()
     detached_embeddings = tensor_detached.numpy()
-    prompt = detached_embeddings[0]
-    simiarities = [cosine_similarity(prompt.reshape(1, -1), detached_embeddings[i].reshape(1, -1))[0][0] for i in range(1, len(embeddings))]
+    simiarities = [cosine_similarity(prompt.reshape(1, -1), detached_embeddings[i].reshape(1, -1))[0][0] for i in range(0, len(router_embeddings))]
 
     # Group simiarities by k elements and sum each group
     group_simiarities = []
@@ -223,6 +249,18 @@ def load_tokenizer():
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
     return tokenizer
+
+def get_embedding_for_one_sentence(sentence):
+    tokenizer = AutoTokenizer.from_pretrained('facebook/contriever')
+    model = AutoModel.from_pretrained('facebook/contriever')
+    inputs = tokenizer([sentence], padding=True, truncation=True, return_tensors='pt')
+
+    # Compute token embeddings
+    outputs = model(**inputs)
+
+    # Mean pooling
+    embeddings = mean_pooling(outputs[0], inputs['attention_mask'])
+    return embeddings[0]
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='User Defined Router')
