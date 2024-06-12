@@ -124,3 +124,39 @@ def load_commonsense_training(name, tokenizer, limit = -1):
     prompts, labels = zip(*binded)
 
     return FinetuneDataModumn(tokenizer, prompts, labels)
+
+
+def load_commonsense_training_prompts(limit = -1):
+    prompts = []
+    
+    dataset = load_dataset("nq_open")
+    df = dataset["train"].to_pandas() 
+    cnt = 0
+    for _ , row in df.iterrows():
+        prompt = row["question"] + " Answer:"
+        prompts.append(prompt)
+        cnt += 1
+        if limit > -1 and cnt == limit:
+            break
+    
+    dataset = load_dataset("gsm8k", "main")
+    df = dataset["train"].to_pandas()
+    cnt = 0
+    for _ , row in df.iterrows():
+        prompt = row["question"]
+        prompts.append(prompt)
+        cnt += 1
+        if limit > -1 and cnt == limit:
+            break
+
+    dataset = load_dataset("keivalya/MedQuad-MedicalQnADataset")
+    df = dataset["train"].to_pandas()[:-1000]
+    cnt = 0
+    for _ , row in df.iterrows():
+        cnt += 1
+        prompt = row["Question"]
+        prompts.append(prompt)
+        if limit > -1 and cnt == limit:
+            break
+
+    return prompts

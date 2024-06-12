@@ -110,3 +110,39 @@ def load_summarization_training(name, tokenizer, limit = -1):
     prompts, labels = zip(*binded)
     
     return FinetuneDataModumn(tokenizer, prompts, labels)
+
+
+def load_summarization_training_prompts(tokenizer, limit = -1):
+    prompts = []
+
+    dataset = load_dataset("google/code_x_glue_ct_code_to_text", "java")
+    df = dataset["train"].to_pandas() 
+    cnt = 0
+    for _ , row in df.iterrows():
+        prompt = truncate(row["original_string"], tokenizer, truncate_len) + "What is the funtion of this code? Answer:"
+        prompts.append(prompt)
+        cnt += 1
+        if limit > -1 and cnt == limit:
+            break
+    
+    dataset = load_dataset("knkarthick/dialogsum")
+    df = dataset["train"].to_pandas() 
+    cnt = 0
+    for _ , row in df.iterrows():
+        prompt = "Dialogue:" + truncate(row["dialogue"], tokenizer, truncate_len) + "What is the summarization of this dialogue? Answer:"
+        prompts.append(prompt)
+        cnt += 1
+        if limit > -1 and cnt == limit:
+            break
+
+    dataset = load_dataset("abisee/cnn_dailymail", "3.0.0")
+    df = dataset["train"].to_pandas() 
+    cnt = 0
+    for _ , row in df.iterrows():
+        prompt = "Article: " + truncate(row["article"], tokenizer, truncate_len) + "\nWhat is the highlight of this article? Answer:"
+        prompts.append(prompt)
+        cnt += 1
+        if limit > -1 and cnt == limit:
+            break
+    
+    return prompts

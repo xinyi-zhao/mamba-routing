@@ -1,17 +1,16 @@
-from semantic_router import Route
+#from semantic_router import Route
 import os
 import argparse
 from getpass import getpass
-from semantic_router.layer import RouteLayer
+#from semantic_router.layer import RouteLayer
 from loaddata.commonsense import load_commonsense_evaluation
 from loaddata.summarization import load_summarization_evaluation
 from loaddata.informationextraction import load_extraction_evaluation
-from langchain_core.prompts import PromptTemplate
-from semantic_router.encoders import HuggingFaceEncoder, CohereEncoder, OpenAIEncoder
-from openai import OpenAI
+#from semantic_router.encoders import HuggingFaceEncoder, CohereEncoder, OpenAIEncoder
+#from openai import OpenAI
 from transformers import AutoTokenizer, AutoModel
 from sklearn.metrics.pairwise import cosine_similarity
-from ICL_routing import *
+#from ICL_routing import *
 
 commen_sense_tasks = ["nq_open", "GSM8K", "MedQUAD"]
 summarization_tasks = ["code2text", "dialog_summary", "cnn_news"]
@@ -209,6 +208,19 @@ def get_embeddings_dataset(embedding_tasks):
     sentences = []
     for embedding_task in embedding_tasks:
         sentences.append(embedding_task["prompt"])
+    # Apply tokenizer
+    inputs = tokenizer(sentences, padding=True, truncation=True, return_tensors='pt')
+
+    # Compute token embeddings
+    outputs = model(**inputs)
+
+    # Mean pooling
+    embeddings = mean_pooling(outputs[0], inputs['attention_mask'])
+    return embeddings
+
+def get_embeddings_dataset_list(sentences):
+    tokenizer = AutoTokenizer.from_pretrained('facebook/contriever')
+    model = AutoModel.from_pretrained('facebook/contriever')
     # Apply tokenizer
     inputs = tokenizer(sentences, padding=True, truncation=True, return_tensors='pt')
 

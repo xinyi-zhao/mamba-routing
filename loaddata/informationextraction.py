@@ -143,3 +143,51 @@ def load_extraction_training(name ,tokenizer, limit = -1):
     prompts, labels = zip(*binded)
     
     return FinetuneDataModumn(tokenizer, prompts, labels)
+
+
+def load_extraction_training_prompts(tokenizer, limit = -1):
+    prompts = []
+
+    dataset = load_dataset("TimoImhof/TriviaQA-in-SQuAD-format")
+    df = dataset["unmodified"].to_pandas()[:-1000]
+    cnt = 0
+    for _ , row in df.iterrows():
+        prompt = truncate(row["context"], tokenizer, truncate_len) + row["question"] + "Answer:"
+        prompts.append(prompt)
+        cnt += 1
+        if limit > -1 and cnt == limit:
+            break
+
+    dataset = load_dataset("rajpurkar/squad")
+    df = dataset["train"].to_pandas()
+    cnt = 0
+    for _ , row in df.iterrows():
+        prompt = truncate(row["context"], tokenizer, truncate_len) + row["question"] + "Answer:"
+        cnt += 1
+        prompts.append(prompt)
+        if limit > -1 and cnt == limit:
+            break
+
+    dataset = load_dataset("hazyresearch/based-swde")
+    df = dataset["validation"].to_pandas()[:-300]
+    cnt = 0
+    for _ , row in df.iterrows():
+        prompt = truncate(row["text"], tokenizer, truncate_len)
+        prompts.append(prompt)
+        cnt += 1
+        if limit > -1 and cnt == limit:
+            break
+
+    dataset = load_dataset("ucinlp/drop")
+    df = dataset["train"].to_pandas()
+    cnt = 0
+    for _ , row in df.iterrows():
+        if (row["answers_spans"]["types"][0] != 'span'):
+            continue
+        prompt = truncate(row["passage"], tokenizer, truncate_len) + row["question"] + "Answer:"
+        prompts.append(prompt)
+        cnt += 1
+        if limit > -1 and cnt == limit:
+            break
+    
+    return prompts
