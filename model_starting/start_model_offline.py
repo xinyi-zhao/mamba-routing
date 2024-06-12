@@ -88,6 +88,10 @@ def main(args):
         print("!!! model not supported")
     print(">>>>>>>>>>>>>> loaded pretrained from", args.model)
 
+    if (args.checkpoint != ""):
+        model.load_state_dict(torch.load(f'{args.checkpoint}/pytorch_model.bin'))
+        print(">>>>>>>>>>>>>> loaded checkpoint from", args.checkpoint)
+        
     fastapi_logger.info('****************** Starting Server *****************')
     host = '127.0.0.1' if DEBUG else '0.0.0.0'
     uvicorn.run(app, host=host, port=args.port)

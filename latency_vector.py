@@ -12,6 +12,7 @@ from loaddata.summarization import load_summarization_evaluation
 from loaddata.informationextraction import load_extraction_evaluation
 import multiprocessing
 from routing import * 
+from collections import defaultdict
 
 
 class TaskProcessor(multiprocessing.Process):
@@ -82,14 +83,16 @@ class TaskProcessor(multiprocessing.Process):
 
 def task_generator(tasks, task_queue, interval_time, port_map, model_map, embedding_task, num_vector):
     router_embedding = get_embeddings_dataset(embedding_task)
+    cnt = 0
     for task in tasks:
+        cnt += 1
+        if cnt % 20 == 0:
+            print(cnt)
         task["start_time"] = time.time()
         model_index = calculate_max_similarities(task["prompt"], router_embedding, n = num_vector)
         model_name = model_map[model_index]
         if task["dataset"] != model_name:
-            print(model_name)
-        else:
-            print("Match {}".format(model_name))
+            print(f"{cnt}: Default {task['dataset']}, Route to {model_name}")
         task["dataset"] = model_name
         if model_name in port_map:
             task["port"] = port_map[model_name]
@@ -99,28 +102,39 @@ def task_generator(tasks, task_queue, interval_time, port_map, model_map, embedd
         time.sleep(interval_time)
     task_queue.append({"port": -1})
 
+def load_tokenizer(model_name):
+    if model_name.find("state-spaces/mamba") != -1:
+        tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"
+    return tokenizer
+
+
 def main(args):
     tasks, embedding_task = [], []
     model_map, port_map = {},{}
     port_map["default"] = args.port[0]
     dataset_id = 0
+    tokenizer = load_tokenizer(args.model)
     for dataset in args.datasets:
         port = args.port[dataset_id]
         port_map[dataset] = port 
         dataset_id += 1
         model_map[dataset_id] = dataset
         if dataset in ["nq_open", "GSM8K", "MedQUAD"]: #Common Knowledge QA
-            prompts, labels, metrics = load_commonsense_evaluation(dataset, limit = args.limit + args.vectorNum)
+            prompts, labels, metrics = load_commonsense_evaluation(dataset, limit = args.limit + args.vectorNum, tokenizer = tokenizer)
         elif dataset in ["code2text", "dialog_summary", "cnn_news"]:
-            prompts, labels, metrics = load_summarization_evaluation(dataset, limit = args.limit + args.vectorNum)
+            prompts, labels, metrics = load_summarization_evaluation(dataset, limit = args.limit + args.vectorNum, tokenizer = tokenizer)
         elif dataset in ["triviaqa", "squad", "swde", "drop"]:
-            prompts, labels, metrics = load_extraction_evaluation(dataset, limit = args.limit + args.vectorNum)
+            prompts, labels, metrics = load_extraction_evaluation(dataset, limit = args.limit + args.vectorNum, tokenizer = tokenizer)
         else:
             print("No such dataset ", dataset)
-        for i in range(len(prompts)-args.vectorNum):
-            tasks.append({"prompt":prompts[i], "label":labels[i], "dataset":dataset, "metrics": metrics, "port":port})
-        for i in range(args.limit, len(prompts)):
+        for i in range(args.vectorNum):
             embedding_task.append({"prompt":prompts[i]})
+        for i in range(args.vectorNum, len(prompts)):
+            tasks.append({"prompt":prompts[i], "label":labels[i], "dataset":dataset, "metrics": metrics, "port":port})
     random.shuffle(tasks)
     logtime = datetime.datetime.now().strftime("%Y%m%d_%H%M%S").replace(" ", "_").replace("/", "_").replace("\\", "_")
     os.makedirs("latency_results", exist_ok=True)
@@ -152,12 +166,13 @@ def main(args):
 if __name__ == "__main__":
     #parser = argparse.ArgumentParser(description='Generate text using MambaLMHeadModel')
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', type=int, default=32, help='Batch size for generation')
-    parser.add_argument('--datasets', type=str, nargs='+', default=['GSM8K', 'nq_open'], help='Dataset name for commonsense loading')
-    parser.add_argument('--limit', type=int, default=10, help='Limit the number of samples')
-    parser.add_argument('--port', type = int, nargs='+', default = ['2001','2003'], help='The model running on the end')
-    parser.add_argument('--interval_time', type = float, default = 0.2, help='The model running on the end')
+    parser.add_argument('--batch_size', type=int, default=16, help='Batch size for generation')
+    parser.add_argument('--datasets', type=str, nargs='+', default=["nq_open", "GSM8K", "MedQUAD","code2text", "dialog_summary", "cnn_news","triviaqa", "squad", "swde", "drop"], help='Dataset name for commonsense loading')
+    parser.add_argument('--limit', type=int, default=300, help='Limit the number of samples')
+    parser.add_argument('--port', type = int, nargs='+', default = ['2001','2001','2001','2003','2003','2003', '2005','2005','2005','2005'], help='The model running on the end')
+    parser.add_argument('--interval_time', type = float, default = 0.1, help='The model running on the end')
     parser.add_argument('--vectorNum', type=int, default=3, help='The number of vector embeddings per dataset')
+    parser.add_argument('--model', type=str, default="state-spaces/mamba-790m", help='model name for loading tokenizer')
     
     args = parser.parse_args()
 
